@@ -1,5 +1,6 @@
 #include "./main.h"
 
+
 WINDOW* my_wins[7];
 PANEL* my_panels[7];
 PANEL* top;
@@ -38,13 +39,63 @@ void ManagerInit()
 }
 
 
+struct _NumOfProc
+{
+  long mtype;
+  unsigned int num;  
+} NumOfProc;
+
+unsigned int ProcNum=0;
+
 int main(void)
 {
+  NumOfProc.mtype=1L;
+  key_t _key;
+  int _msgid=0;
+  _key=ftok("./progfile",0);
+  _msgid=msgget(_key, 0666|IPC_CREAT);
+  struct msqid_ds buf;
+  int rc=msgctl(_msgid, IPC_STAT, &buf);
+  int num_messages=buf.msg_qnum;
+
+  //NumOfProc.num=0;
+  printf("messages queue: %d\n", num_messages);
+  if(num_messages>0)
+  {
+    if(msgrcv(_msgid, &NumOfProc, sizeof(NumOfProc),1L,0)<0)
+    {
+      perror("msgrcv");
+      exit(EXIT_FAILURE);
+    }
+    NumOfProc.num++;
+    ProcNum=NumOfProc.num;
+    if(msgsnd(_msgid, &NumOfProc, sizeof(NumOfProc),0)<0)
+    {
+      perror("msgsnd1");
+      exit(EXIT_FAILURE);
+    }
+  }
+  else
+  {
+    NumOfProc.num=1;
+    ProcNum=NumOfProc.num;
+    if(msgsnd(_msgid, &NumOfProc, sizeof(NumOfProc),0)<0)
+    {
+      perror("msgsnd2");
+      exit(EXIT_FAILURE);
+    }
+  }
   
-//  WINDOW* my_wins[5];
-//  PANEL* my_panels[5];
-//  PANEL* top;
+  printf("Your %d in room\n", ProcNum);
+  //return 0;
+  //  WINDOW* my_wins[5];
+  //  PANEL* my_panels[5];
+  //  PANEL* top;
   int ch=0;
+  unsigned int namelength=50;
+  unsigned char* UserName;
+  printf("Enter your name:");
+  UserName=get_simString(&namelength);
   
   initscr();
   start_color();
@@ -78,64 +129,80 @@ int main(void)
   top=my_panels[3];
   ChangeWin=3;
   */
+  ChangeWin=3;
   ManagerInit();
   wrefresh(my_wins[4]);
   wrefresh(my_wins[5]);
   wrefresh(my_wins[6]);
+  attron(COLOR_PAIR(1));
+  mvprintw(LINES-3,5,"User name:%s", UserName);
+  attroff(COLOR_PAIR(1));
+  PrintAllMessages(my_wins[5], ProcNum);
   
-  while((ch=getch())!=KEY_BACKSPACE)
+  while(1)
   {
-    switch(ch)
+    PrintAllMessages(my_wins[5], ProcNum);
+    if((ch=getch())!=KEY_BACKSPACE)
     {
-      case '\t':
-        ChangeWin++;
-        if(ChangeWin>=5 || ChangeWin<=3)
-          ChangeWin=3;
-        else
-          ChangeWin=4;
-        
-        top=(PANEL*)panel_userptr(top);
-        top_panel(top);
-        wclear(my_wins[ChangeWin+1]);
-        mvwprintw(my_wins[1], 1, 8, "  ");
-        mvwprintw(my_wins[2], 1, 8, "  ");
-        mvwprintw(my_wins[1], 1, 5, "  ");
-        mvwprintw(my_wins[2], 1, 5, "  ");
-        mvwprintw(my_wins[ChangeWin-2], 1, 5, "*");
-        //МЕСТО ДЛЯ ФУНКЦИИ ПО ВВОДУ СООБЩЕНИЯ
-        //NewMassage(my_wins[ChangeWin+1]);
-        //КОНЕЦ
-        wrefresh(my_wins[ChangeWin+1]);
-        /*
-        wrefresh(my_wins[0]);
-        wrefresh(my_wins[1]);
-        wrefresh(my_wins[2]);
-        wrefresh(my_wins[3]);
-        
-        wrefresh(my_wins[4]);
-        wrefresh(my_wins[5]);
-        wrefresh(my_wins[6]);
-        */
-        break;
-
-
-      case '\n':
-        wclear(my_wins[ChangeWin+1]);
-        mvwprintw(my_wins[1], 1, 8, "  ");
-        mvwprintw(my_wins[2], 1, 8, "  ");
-        mvwprintw(my_wins[ChangeWin-2], 1, 8, "I");
-        wrefresh(my_wins[ChangeWin-2]);
-        wrefresh(my_wins[ChangeWin+1]);
-        NewMassage(my_wins[ChangeWin+1]);
-        mvwprintw(my_wins[1], 1, 8, "  ");
-        mvwprintw(my_wins[2], 1, 8, "  ");
-        wrefresh(my_wins[ChangeWin+1]);
-        break;
+      switch(ch)
+      {
+        case '\n':
+          rc=msgctl(_msgid, IPC_STAT, &buf);
+          num_messages=buf.msg_qnum;
+          if(msgrcv(_msgid, &NumOfProc, sizeof(NumOfProc),1L,0)<0)
+          {
+            perror("enter(read num of users)");
+            exit(EXIT_FAILURE);
+          }
+          if(msgsnd(_msgid, &NumOfProc, sizeof(NumOfProc),0)<0)
+          {
+            perror("enter(send num of users)");
+            exit(EXIT_FAILURE);
+          }
+          
+          wclear(my_wins[ChangeWin+1]);
+          mvwprintw(my_wins[1], 1, 8, "  ");
+          mvwprintw(my_wins[2], 1, 8, "  ");
+          mvwprintw(my_wins[ChangeWin-2], 1, 8, "I");
+          wrefresh(my_wins[ChangeWin-2]);
+          wrefresh(my_wins[ChangeWin+1]);
+          NewMassage(my_wins[ChangeWin+1], UserName, my_wins[5], NumOfProc.num, ProcNum);
+          mvwprintw(my_wins[1], 1, 8, "  ");
+          mvwprintw(my_wins[2], 1, 8, "  ");
+          wrefresh(my_wins[ChangeWin+1]);
+          break;
+      }
+      update_panels();
+      doupdate();
     }
-    update_panels();
-    doupdate();
+    else
+      break;
+    
+    //PrintAllMessages(my_wins[5], ProcNum);
   }
   endwin();
+
+  rc=msgctl(_msgid, IPC_STAT, &buf);
+  num_messages=buf.msg_qnum;
+  if(msgrcv(_msgid, &NumOfProc, sizeof(NumOfProc), 1L, 0)<0)
+  {
+    perror("End msg receive");
+    exit(EXIT_FAILURE);
+  }
+  if(NumOfProc.num<=1)
+  {
+    NumOfProc.num=0;
+    msgctl(_msgid, IPC_RMID, NULL);
+  }
+  else
+    NumOfProc.num--;
+  printf("Sizeof NumOfProc: %d\n", NumOfProc.num);
+  if(msgsnd(_msgid, &NumOfProc, sizeof(NumOfProc), 0)<0)
+  {
+    perror("End msg send");
+    exit(EXIT_FAILURE);
+  }
+  
   return 0;
 }
 
@@ -205,13 +272,13 @@ void init_wins(WINDOW** wins, int n)
     }
     wins[i] = newwin(NLINES, NCOLS, y, x);
     if(i==0)
-		  sprintf(label, "Main window");
+		  sprintf(label, "CHAT ROOM");
     else if(i==1)
-      sprintf(label, "User1");
+      sprintf(label, "MESSAGE");
     else if(i==2)
-      sprintf(label, "User2");
-    else if(i==3)
       sprintf(label, "CHAT");
+    else if(i==3)
+      sprintf(label, "USERS");
     /*
     else if(i==3)
       sprintf(label, " ");

@@ -3,7 +3,7 @@
 long A=0;
 pthread_mutex_t mut=PTHREAD_MUTEX_INITIALIZER;
 
-void func(void* param)
+void* func(void* param)
 {
   
   unsigned long tmp=0;

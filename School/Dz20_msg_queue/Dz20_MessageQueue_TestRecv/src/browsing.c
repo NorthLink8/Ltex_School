@@ -45,3 +45,5 @@ void NewMassage(WINDOW* win/*, unsigned int UserNum*/ )
   pthread_join(tid, NULL);
 }
 
+
+
