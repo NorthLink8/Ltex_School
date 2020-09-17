@@ -57,9 +57,134 @@ struct OutputStruct
 {
   WINDOW* outputwin;
   unsigned int _numofmyproc;
-};
+} OutputStruct;
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+unsigned int enable=1, _end=0;
+pthread_mutex_t mut;
 
 
+
+void* GetString(void* InputStr)
+{
+	struct msg_buf
+	{
+		long mtype;
+    unsigned char mtext[255];
+  } message;
+	message.mtype=1L;
+
+	while(1)
+	{
+		if(wgetch((WINDOW*)(((struct InputStruct*)InputStr)->inputwin))=='\n')
+		{
+			pthread_mutex_lock(&mut);
+			enable=0;
+			wprintw((WINDOW*)(((struct InputStruct*)InputStr)->inputwin), "->");
+			unsigned int msg_len=255;
+			unsigned char* msg_text=get_string(&msg_len, ((WINDOW*)((struct InputStruct*)InputStr)->inputwin));
+			sprintf(message.mtext, "%s: %s\n", ((unsigned char*)((struct InputStruct*)InputStr)->_name), (unsigned char*)msg_text);
+			wrefresh((WINDOW*)(((struct InputStruct*)InputStr)->inputwin));
+			wclear((WINDOW*)(((struct InputStruct*)InputStr)->inputwin));
+
+			key_t msgkey;
+      int msgid=0;
+			msgkey=ftok("./progfile", 0);
+			msgid=msgget(msgkey, 0666|IPC_CREAT);
+			if(msgrcv(msgid, &NumOfProc, sizeof(NumOfProc),1L,0)<0)
+			{
+				perror("NewRCV for send");
+				exit(EXIT_FAILURE);
+			}
+			unsigned int numofmessages=NumOfProc.num;
+			if(msgsnd(msgid, &NumOfProc, sizeof(NumOfProc),0)<0)
+			{
+				perror("NewSND for send");
+				exit(EXIT_FAILURE);
+			}
+
+			//Нужно прочитать сколько у нас всего процессов запуенно на данный момент
+			//После чего отправить сообщение на каждый процесс
+		
+      for(unsigned i=1; i<=numofmessages; i++)
+      {
+        msgkey=100+i;
+        msgid=msgget(msgkey, 0666|IPC_CREAT);
+        if(msgsnd(msgid, &message, sizeof(message), 0)<0)
+        {
+          perror("msg snd string");
+          exit(EXIT_FAILURE);
+        }
+      }
+
+			enable=1;
+			pthread_mutex_unlock(&mut);
+		}
+		else if(wgetch((WINDOW*)(((struct InputStruct*)InputStr)->inputwin))=='\t')
+		{
+			pthread_mutex_lock(&mut);
+			_end=1;
+			pthread_mutex_unlock(&mut);
+		}
+	}
+  return(void*)0;
+}
+
+
+void* PrintNewMessage(void* OutputStr)
+{
+	unsigned int printline=0;
+	struct msg_buf
+	{
+		long mtype;
+		unsigned char mtext[255];
+	} message;
+	message.mtype=1L;
+	key_t _readkey;
+	int _readid;
+	_readkey=100+((unsigned int)(((struct OutputStruct*)OutputStr)->_numofmyproc));
+	_readid=msgget(_readkey, 0660|IPC_CREAT);
+	struct msqid_ds readbuf;
+	if(msgrcv(_readid, &message, sizeof(message), 1L, 0)<0)
+	{
+		perror("read msg error");
+		exit(EXIT_FAILURE);
+	}
+	
+	int t=0;
+	while(1)
+	{
+		pthread_mutex_lock(&mut);	
+		if(msgctl(_readid, IPC_STAT, &readbuf)<0)
+		{
+			perror("CTLcheck failed");
+			exit(EXIT_FAILURE);
+		}
+		//unsigned int numofmsg=readbuf.msg_cbytes;
+		
+		if ((unsigned int)readbuf.msg_qnum>0)
+		{
+			if(msgrcv(_readid, &message, sizeof(message), 1L, 0)<0)
+			{
+				perror("read msg error");
+				exit(EXIT_FAILURE);
+			}
+			//wrefresh((WINDOW*)(((struct OutputStruct*)OutputStr)->outputwin));
+			//wprintw((WINDOW*)(((struct OutputStruct*)OutputStr)->outputwin), "%s", message.mtext);
+			//wrefresh((WINDOW*)(((struct OutputStruct*)OutputStr)->outputwin));
+		}
+		
+		printline++;
+		if(printline>=LINES-11)
+		{
+			printline=0;
+			wclear((WINDOW*)(((struct OutputStruct*)OutputStr)->outputwin));
+		}
+		pthread_mutex_unlock(&mut);
+		//sleep(1);
+	}
+	return(void*)0;
+}
 
 
 
@@ -72,7 +197,7 @@ int main(void)
   _msgid=msgget(_key, 0666|IPC_CREAT);
   struct msqid_ds buf;
   int rc=msgctl(_msgid, IPC_STAT, &buf);
-  int num_messages=buf.msg_qnum;
+  int num_messages=buf.msg_cbytes;
 
   //NumOfProc.num=0;
   printf("messages queue: %d\n", num_messages);
@@ -80,14 +205,14 @@ int main(void)
   {
     if(msgrcv(_msgid, &NumOfProc, sizeof(NumOfProc),1L,0)<0)
     {
-      perror("msgrcv");
+      perror("msgrcv first");
       exit(EXIT_FAILURE);
     }
     NumOfProc.num++;
     ProcNum=NumOfProc.num;
     if(msgsnd(_msgid, &NumOfProc, sizeof(NumOfProc),0)<0)
     {
-      perror("msgsnd1");
+			perror("msgsnd1 first");
       exit(EXIT_FAILURE);
     }
   }
@@ -126,35 +251,20 @@ int main(void)
   init_pair(4,  COLOR_CYAN,   COLOR_BLACK);
   init_pair(5,  COLOR_RED,    COLOR_BLACK);
   init_pair(6,  COLOR_GREEN,  COLOR_BLACK);
-
-  /*
-  init_wins(my_wins,5);
-  my_panels[0]=new_panel(my_wins[0]);
-  my_panels[1]=new_panel(my_wins[1]);
-  my_panels[2]=new_panel(my_wins[2]);
-  my_panels[3]=new_panel(my_wins[3]);
-  my_panels[4]=new_panel(my_wins[4]);
-
-  set_panel_userptr(my_panels[3], my_panels[4]);
-  set_panel_userptr(my_panels[4], my_panels[3]);
-  update_panels();
-  attron(COLOR_PAIR(4));
-  mvprintw(LINES-2,5,"Use tab to browse through the windows (Backspace to Exit)");
-  attroff(COLOR_PAIR(4));
-  doupdate();
-  top=my_panels[3];
-  ChangeWin=3;
-  */
   ChangeWin=3;
   ManagerInit();
-  wrefresh(my_wins[4]);
-  wrefresh(my_wins[5]);
-  wrefresh(my_wins[6]);
   attron(COLOR_PAIR(1));
   mvprintw(LINES-3,5,"User name:%s\n", UserName);
   attroff(COLOR_PAIR(1));
+  wrefresh(my_wins[4]);
+  wrefresh(my_wins[5]);
+  wrefresh(my_wins[6]);
+
+
   //PrintAllMessages(my_wins[5], ProcNum);
-  
+
+
+
   struct InputStruct* InputInf=(struct InputStruct*)malloc(sizeof(struct InputStruct));
   InputInf->inputwin=my_wins[ChangeWin+1];
   InputInf->_name=UserName;
@@ -163,24 +273,31 @@ int main(void)
   OutputInf->outputwin=my_wins[5];
   OutputInf->_numofmyproc=ProcNum;
 
-	sleep(1);
-
   pthread_t mtid[2];
   pthread_create(&mtid[0], NULL, (void*)GetString, (void*)InputInf);
-  //pthread_create(&mtid[1], NULL, (void*)PrintNewMessage, (void*)OutputInf);
+  pthread_create(&mtid[1], NULL, (void*)PrintNewMessage, (void*)OutputInf);
   
-  pthread_join(mtid[0], NULL);
+  //pthread_join(mtid[0], NULL);
   //pthread_join(mtid[1], NULL);
   //Обработка потоков
   
   while(1)
   {
-    if((ch=getch())!='\t')
-    {
-      continue;
-    }
-    else
-      break;
+		if(_end==0)
+		{
+			/*
+			wrefresh(my_wins[5]);
+			sleep(0.5);
+			*/
+			//pthread_join(mtid[0], NULL);
+			//pthread_join(mtid[1], NULL);
+			continue;
+		}
+		else
+		{
+			break;
+		}
+		
   }
   
   endwin();

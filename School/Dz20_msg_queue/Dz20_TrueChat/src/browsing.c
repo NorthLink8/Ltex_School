@@ -17,10 +17,7 @@ pthread_mutex_t mut;
 
 void* GetString(void* InputStr)
 {
-  /*
-  unsigned int msg_size=255;
-  unsigned char* msg_string=get_string(&msg_size, (WINDOW*)(((struct InputStruct*)InputStr)->inputwin));
-  */
+/*
   while(1)
   {
     if(wgetch((WINDOW*)((struct InputStruct*)InputStr)->inputwin)=='\n')
@@ -60,12 +57,29 @@ void* GetString(void* InputStr)
       break;
     }
   }
+	*/
+	while(1)
+	{
+		pthread_mutex_lock(&mut);
+		if(wgetch((WINDOW*)(((struct InputStruct*)InputStr)->inputwin))=='\n')
+		{
+			enable=1;
+			wprintw((WINDOW*)(((struct InputStruct*)InputStr)->inputwin), "HELLO\n");
+		}
+		else if(wgetch((WINDOW*)(((struct InputStruct*)InputStr)->inputwin))=='\t')
+		{
+			enable=0;
+			break;
+		}
+		pthread_mutex_unlock(&mut);
+	}
   return(void*)0;
 }
 
 
 void* PrintNewMessage(/*WINDOW* win, unsigned char* _Name*/void* OutputStr)
 {
+	/*
   while(enable!=0)
   {
     pthread_mutex_lock(&mut);
@@ -91,7 +105,14 @@ void* PrintNewMessage(/*WINDOW* win, unsigned char* _Name*/void* OutputStr)
     pthread_mutex_unlock(&mut);
     sleep(0.5);
   }
-  return(void*)0;
+	*/
+	while(enable!=0)
+	{
+		pthread_mutex_lock(&mut);
+		wprintw((WINDOW*)(((struct OutputStruct*)OutputStr)->outputwin), "HELLO\n");
+		pthread_mutex_unlock(&mut);
+	}
+	return(void*)0;
 }
 
 
