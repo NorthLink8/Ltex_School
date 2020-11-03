@@ -45,7 +45,7 @@ int main(void)
 	}
 	memset(&servaddr, 0, sizeof(servaddr));
 	servaddr.sin_family=AF_INET;
-	servaddr.sin_port=9050;
+	servaddr.sin_port=8888;
 	servaddr.sin_addr.s_addr=INADDR_ANY;
 
 	while(1)
@@ -62,6 +62,16 @@ int main(void)
 			perror("sendto err");
 			exit(EXIT_FAILURE);
 		}
+		
+		unsigned char recvbuf[350];
+		if(recvfrom(sockfd ,recvbuf, 350, 0, (struct sockaddr*)&servaddr, &socklen)<0)
+		{
+			perror("recv from err");
+			break;
+		}
+		else
+			printf("ECHO: %s\n", recvbuf);
+		
 	}
 	close(sockfd);
 

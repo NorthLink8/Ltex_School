@@ -17,7 +17,6 @@ pthread_mutex_t mut;
 
 void* GetString(void* InputStr)
 {
-/*
   while(1)
   {
     if(wgetch((WINDOW*)((struct InputStruct*)InputStr)->inputwin)=='\n')
@@ -48,39 +47,25 @@ void* GetString(void* InputStr)
           exit(EXIT_FAILURE);
         }
       }
+			wclear((WINDOW*)((((struct InputStruct*)InputStr)->inputwin)));
       pthread_mutex_unlock(&mut);
 
     }
     else if((wgetch((WINDOW*)((struct InputStruct*)InputStr)->inputwin))=='\t')
     {
+			pthread_mutex_lock(&mut);
       enable=0;
+			pthread_mutex_unlock(&mut);
       break;
     }
   }
-	*/
-	while(1)
-	{
-		pthread_mutex_lock(&mut);
-		if(wgetch((WINDOW*)(((struct InputStruct*)InputStr)->inputwin))=='\n')
-		{
-			enable=1;
-			wprintw((WINDOW*)(((struct InputStruct*)InputStr)->inputwin), "HELLO\n");
-		}
-		else if(wgetch((WINDOW*)(((struct InputStruct*)InputStr)->inputwin))=='\t')
-		{
-			enable=0;
-			break;
-		}
-		pthread_mutex_unlock(&mut);
-	}
-  return(void*)0;
+	return(void*)0;
 }
 
 
 void* PrintNewMessage(/*WINDOW* win, unsigned char* _Name*/void* OutputStr)
 {
-	/*
-  while(enable!=0)
+  while(enable==1)
   {
     pthread_mutex_lock(&mut);
     struct msg_buf
@@ -105,13 +90,6 @@ void* PrintNewMessage(/*WINDOW* win, unsigned char* _Name*/void* OutputStr)
     pthread_mutex_unlock(&mut);
     sleep(0.5);
   }
-	*/
-	while(enable!=0)
-	{
-		pthread_mutex_lock(&mut);
-		wprintw((WINDOW*)(((struct OutputStruct*)OutputStr)->outputwin), "HELLO\n");
-		pthread_mutex_unlock(&mut);
-	}
 	return(void*)0;
 }
 

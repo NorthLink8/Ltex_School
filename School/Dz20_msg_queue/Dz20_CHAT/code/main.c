@@ -79,7 +79,6 @@ void* GetString(void* InputStr)
 		if(wgetch((WINDOW*)(((struct InputStruct*)InputStr)->inputwin))=='\n')
 		{
 			pthread_mutex_lock(&mut);
-			enable=0;
 			wprintw((WINDOW*)(((struct InputStruct*)InputStr)->inputwin), "->");
 			unsigned int msg_len=255;
 			unsigned char* msg_text=get_string(&msg_len, ((WINDOW*)((struct InputStruct*)InputStr)->inputwin));
@@ -116,8 +115,6 @@ void* GetString(void* InputStr)
           exit(EXIT_FAILURE);
         }
       }
-
-			enable=1;
 			pthread_mutex_unlock(&mut);
 		}
 		else if(wgetch((WINDOW*)(((struct InputStruct*)InputStr)->inputwin))=='\t')
@@ -152,7 +149,7 @@ void* PrintNewMessage(void* OutputStr)
 	}
 	
 	int t=0;
-	while(1)
+	while(_end==0)
 	{
 		pthread_mutex_lock(&mut);	
 		if(msgctl(_readid, IPC_STAT, &readbuf)<0)
@@ -169,8 +166,9 @@ void* PrintNewMessage(void* OutputStr)
 				perror("read msg error");
 				exit(EXIT_FAILURE);
 			}
-			//wrefresh((WINDOW*)(((struct OutputStruct*)OutputStr)->outputwin));
-			//wprintw((WINDOW*)(((struct OutputStruct*)OutputStr)->outputwin), "%s", message.mtext);
+			wrefresh((WINDOW*)(((struct OutputStruct*)OutputStr)->outputwin));
+			wprintw((WINDOW*)(((struct OutputStruct*)OutputStr)->outputwin), "%s", message.mtext);
+			readbuf.msg_qnum--;
 			//wrefresh((WINDOW*)(((struct OutputStruct*)OutputStr)->outputwin));
 		}
 		

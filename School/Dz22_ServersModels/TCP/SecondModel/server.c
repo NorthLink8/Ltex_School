@@ -108,12 +108,12 @@ int main(void)
   
 	if(bind(fd, (struct sockaddr*)&saddr, sizeof(saddr))<0)
 	{
-		perror("bind err\n");
+		perror("bind err");
 		exit(EXIT_FAILURE);
 	}
 	if(listen(fd, 10)<0)
 	{
-		perror("max connection err\n");
+		perror("max connection err");
 		exit(EXIT_FAILURE);
 	}
 	fprintf(stderr, "Listen on part %i for client...\n", 8888);
